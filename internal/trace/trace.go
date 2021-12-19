@@ -18,27 +18,29 @@ package trace
 import (
 	"context"
 
-	"go.opencensus.io/trace"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 	"gocloud.dev/gcerrors"
 )
 
 // StartSpan adds a span to the trace with the given name.
 func StartSpan(ctx context.Context, name string) context.Context {
-	ctx, _ = trace.StartSpan(ctx, name)
-	return ctx
+	span := trace.SpanFromContext(ctx)
+	span.SetName(name)
+	return trace.ContextWithSpan(ctx, span)
 }
 
 // EndSpan ends a span with the given error.
 func EndSpan(ctx context.Context, err error) {
-	span := trace.FromContext(ctx)
+	span := trace.SpanFromContext(ctx)
 	if err != nil {
-		span.SetStatus(toStatus(err))
+		span.SetStatus(toStatus(err), err.Error())
 	}
 	span.End()
 }
 
 // toStatus interrogates an error and converts it to an appropriate
 // OpenCensus status.
-func toStatus(err error) trace.Status {
-	return trace.Status{Code: int32(gcerrors.Code(err)), Message: err.Error()}
+func toStatus(err error) codes.Code {
+	return codes.Code(gcerrors.Code(err))
 }
